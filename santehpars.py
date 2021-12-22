@@ -8,16 +8,16 @@ logger = logging.getLogger('wb')
 
 ParseResult = collections.namedtuple(
     'ParseResult', (
-        'brandName',
-        'goodsName',
+        'name',
+        'price',
         'url',
     )
 )
 
 HEADERS = (
-    'Бренд',
     'Товар',
-    'Ссылка'
+    'Цена',
+    'Ссылк',
     )
 
 class Client:
@@ -29,14 +29,14 @@ class Client:
         self.result = []
     
     def load_page(self, page):  #загрузка сессией страницы по данному url
-        url = f'https://www.wildberries.ru/catalog/muzhchinam/odezhda?sort=popular&page={page}'
+        url = f'https://santehgas.ru/vodosnabzhenie/?page={page}'
         res = self.session.get(url=url)  #здесь ответ(responce) на запрос
         res.raise_for_status()  #метод возвращающий код ответа http(200 404 500 и тд)
         return res.text         #возврат текста в html формате 
 
     def parse_page(self, text:str):  #парсинг страницы, на входе bs обрабатывает текст полученный из requests
         soup = BeautifulSoup(text, 'lxml')
-        container = soup.select('div.product-card.j-card-item') #отбор контента по классам css
+        container = soup.select('div.product.flexdiscount-product-wrap') #отбор контента по классам css
         for block in container:   # для каждого блока контейнера
             self.parse_block(block=block)  #происходит вывод в консоль + отделение горизонтальной чертой из знаков ========
 
@@ -44,40 +44,48 @@ class Client:
         # logger.info(block)
         # logger.info('='*100)
         
-        urlblock = block.select_one('a.product-card__main.j-open-full-product-card')
+        urlblock = block.select_one('a')
         if not urlblock:
             logger.error('no url block')
         url = urlblock.get('href')
         if not url:
             logger.error('no href')
-        url ='https://www.wildberries.ru'+url
+        url = 'https://santehgas.ru' + url
+        name = urlblock.get('title')
 
-        nameblock = block.select_one('div.product-card__brand-name')
-        if not nameblock:
-            logger.error(f'no name_block block on {url}')
+        priceblock = block.select_one('span')
+        if not priceblock:
+            logger.error('no price block')
+        price = priceblock.text
 
-        brandname = nameblock.select_one('strong.brand-name')
-        if not brandname:
-            logger.error(f'no brandname on {url} ')        
-        brandname = brandname.text
-        brandname = brandname.replace('/', '').strip()
+        
 
-        goodsname = nameblock.select_one('span.goods-name')
-        if not goodsname:
-            logger.error(f'no goodsname on {url}')
-        goodsname = goodsname.text
+        # nameblock = block.select_one('div.product-card__brand-name')
+        # if not nameblock:
+        #     logger.error(f'no name_block block on {url}')
+
+        # brandname = nameblock.select_one('strong.brand-name')
+        # if not brandname:
+        #     logger.error(f'no brandname on {url} ')        
+        # brandname = brandname.text
+        # brandname = brandname.replace('/', '').strip()
+
+        # goodsname = nameblock.select_one('span.goods-name')
+        # if not goodsname:
+        #     logger.error(f'no goodsname on {url}')
+        # goodsname = goodsname.text
         
         self.result.append(ParseResult(
             url=url,
-            brandName=brandname,
-            goodsName=goodsname
+            price=price,
+            name=name,
         ))
 
-        logger.debug('%s, %s, %s', url, brandname, goodsname)
+        logger.debug('%s, %s, %s', url, name)
         logger.debug('-'*100)
 
     def save_result(self, page):
-        path = os.path.abspath(os.curdir) + '/test.csv'
+        path = os.path.abspath(os.curdir) + '/santehpars.csv'
         with open(path, 'w') as f:
             writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL) #обращение к модули записи в css файл
             writer.writerow(HEADERS) # метод 'записать строку(хедеры)
@@ -94,7 +102,7 @@ class Client:
 
 if __name__ == '__main__':
     parser = Client()
-    for i in range(5):
+    for i in range(3):
         parser.run(i)
         
 
